@@ -45,7 +45,7 @@
         <input type="text" id="searchBox" class="search-box" placeholder="Search for a product..." oninput="filterProducts()">
         <select id="currencySelect" class="currency-dropdown" onchange="updateCurrency()">
             <option value="INR">Indian Rupee (INR)</option>
-            <option value="USD">US Dollar (USD)</option>
+            <option value="USD" selected>US Dollar (USD)</option>
             <option value="EUR">Euro (EUR)</option>
             <option value="GBP">British Pound (GBP)</option>
             <option value="JPY">Japanese Yen (JPY)</option>
@@ -65,6 +65,7 @@
         let productsData = [];
         const exchangeRates = { "USD": 1 };
 
+        // Fetch products from API
         const fetchProducts = () => {
             fetch('https://fakestoreapi.com/products')
                 .then(res => res.json())
@@ -72,27 +73,47 @@
                     productsData = data;
                     fetchCategories();
                     updateCurrency();
-                });
+                })
+                .catch(err => console.error("Error fetching products:", err));
         };
 
+        // Fetch exchange rates for currency conversion
         const fetchExchangeRates = (targetCurrency) => {
-            fetch(https://api.frankfurter.app/latest?from=USD&to=${targetCurrency})
+            if (targetCurrency === "USD") {
+                exchangeRates["USD"] = 1;
+                filterProducts();
+                return;
+            }
+            
+            fetch(`https://api.frankfurter.app/latest?from=USD&to=${targetCurrency}`)
                 .then(res => res.json())
                 .then(response => {
                     exchangeRates[targetCurrency] = response.rates[targetCurrency] || 1;
                     filterProducts();
-                });
+                })
+                .catch(err => console.error("Error fetching exchange rates:", err));
         };
 
+        // Handle currency change
         const updateCurrency = () => {
             const selectedCurrency = document.getElementById('currencySelect').value;
-            if (selectedCurrency === "USD") {
-                filterProducts();
-            } else {
-                fetchExchangeRates(selectedCurrency);
-            }
+            fetchExchangeRates(selectedCurrency);
         };
 
+        // Fetch product categories
+        const fetchCategories = () => {
+            fetch('https://fakestoreapi.com/products/categories')
+                .then(res => res.json())
+                .then(categories => {
+                    const categoryFilter = document.getElementById('categoryFilter');
+                    categories.forEach(category => {
+                        categoryFilter.innerHTML += `<option value="${category}">${category}</option>`;
+                    });
+                })
+                .catch(err => console.error("Error fetching categories:", err));
+        };
+
+        // Filter products based on search, category, and price range
         const filterProducts = () => {
             const query = document.getElementById('searchBox').value.toLowerCase();
             const category = document.getElementById('categoryFilter').value;
@@ -102,17 +123,18 @@
             const conversionRate = exchangeRates[selectedCurrency] || 1;
 
             const filteredProducts = productsData.filter(product => {
-                const originalPrice = product.price * conversionRate;
+                const convertedPrice = product.price * conversionRate;
                 return (
                     product.title.toLowerCase().includes(query) &&
                     (!category || product.category === category) &&
-                    originalPrice >= minPrice && originalPrice <= maxPrice
+                    convertedPrice >= minPrice && convertedPrice <= maxPrice
                 );
             });
 
             displayProducts(filteredProducts);
         };
 
+        // Display filtered products
         const displayProducts = (products) => {
             const container = document.getElementById('productsContainer');
             container.innerHTML = "";
@@ -120,30 +142,20 @@
             const conversionRate = exchangeRates[selectedCurrency] || 1;
 
             products.forEach(product => {
-                const originalPrice = product.price * conversionRate;
+                const originalPrice = (product.price * conversionRate).toFixed(2);
                 const discountedPrice = (originalPrice * 0.95).toFixed(2);
 
-                container.innerHTML += 
-                    `<div class="product-card">
+                container.innerHTML += `
+                    <div class="product-card">
                         <img src="${product.image}" alt="${product.title}">
                         <h3>${product.title}</h3>
-                        <p>${discountedPrice} ${selectedCurrency}</p>
-                        <p><s>${originalPrice.toFixed(2)} ${selectedCurrency}</s></p>
+                        <p><strong>Price:</strong> ${discountedPrice} ${selectedCurrency}</p>
+                        <p><s>${originalPrice} ${selectedCurrency}</s></p>
                     </div>`;
             });
         };
 
-        const fetchCategories = () => {
-            fetch('https://fakestoreapi.com/products/categories')
-                .then(res => res.json())
-                .then(categories => {
-                    const categoryFilter = document.getElementById('categoryFilter');
-                    categories.forEach(category => {
-                        categoryFilter.innerHTML += <option value="${category}">${category}</option>;
-                    });
-                });
-        };
-
+        // Initialize products on page load
         fetchProducts();
     </script>
 </body>
